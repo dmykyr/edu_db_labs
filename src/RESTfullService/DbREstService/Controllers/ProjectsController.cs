@@ -105,5 +105,52 @@ namespace DbREstService.Controllers
                 return StatusCode(500, $"Internal Server Error: {ex.Message}");
             }
         }
+
+        [HttpGet("{projectId}/reviews")]
+        public async Task<ActionResult<IEnumerable<Review>>> GetProjectReviews(int projectId)
+        {
+            try
+            {
+                var project = await _context.Projects.FindAsync(projectId);
+
+                if (project == null) return NotFound("Project with such Id does not exist");
+
+                if (project.Status != "Finished") return BadRequest("Selected project is not finished");
+
+                var reviews = await _context.Reviews
+                                            .Where(r => r.ProjectId == projectId)
+                                            .ToListAsync();
+
+                await _context.SaveChangesAsync();
+
+                return CreatedAtAction("GetReviews", new { id = project.Id }, project);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Internal Server Error: {ex.Message}");
+            }
+        }
+
+        [HttpPost("{projectId}/reviews")]
+        public async Task<ActionResult<IEnumerable<Review>>> AddReview(int projectId, [FromBody] Review review)
+        {
+            try
+            {
+                var project = await _context.Projects.FindAsync(projectId);
+
+                if (project == null) return NotFound("Project with such Id does not exist");
+
+                if (project.Status != "Finished") return BadRequest("Selected project is not finished");
+
+                _context.Reviews.Add(review);
+                await _context.SaveChangesAsync();
+
+                return CreatedAtAction("GetReviews", new { id = project.Id });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Internal Server Error: {ex.Message}");
+            }
+        }
     }
 }
