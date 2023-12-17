@@ -1,5 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.ComponentModel.DataAnnotations.Schema;
 
 namespace DbREstService.Models;
 
@@ -11,7 +10,9 @@ public partial class Member
 
     public int UserId { get; set; }
 
+    [ForeignKey("RoleId")]
     public virtual Role Role { get; set; } = null!;
 
+    [ForeignKey("UserId")]
     public virtual User User { get; set; } = null!;
 }

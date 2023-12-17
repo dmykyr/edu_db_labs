@@ -1,5 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.ComponentModel.DataAnnotations.Schema;
 
 namespace DbREstService.Models;
 
@@ -17,5 +16,6 @@ public partial class Task
 
     public int ProjectId { get; set; }
 
+    [ForeignKey("ProjectId")]
     public virtual Project Project { get; set; } = null!;
 }

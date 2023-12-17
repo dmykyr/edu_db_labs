@@ -1,7 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-
-namespace DbREstService.Models;
+﻿namespace DbREstService.Models;
 
 public partial class Permission
 {
