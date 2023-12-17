@@ -31,14 +31,13 @@ namespace DbREstService.Controllers
         }
 
         [HttpGet("{projectId:int}")]
-        public async Task<ActionResult<Project>> GetProject(
-            [FromQuery(Name = "projectId")] int projectId)
+        public async Task<ActionResult<Project>> GetProject(int projectId)
         {
             try
             {
                 var project = await _context.Projects.FindAsync(projectId);
 
-                if (project == null)  return NotFound("Project with such Id does not exist");
+                if (project == null)  return BadRequest("Project with such Id does not exist");
 
                 return project;
             }
@@ -50,14 +49,14 @@ namespace DbREstService.Controllers
 
         [HttpPatch("{projectId:int}")]
         public async Task<ActionResult<Project>> PatchProject(
-            [FromQuery(Name = "pageNumber")] int projectId, 
+            int projectId, 
             [FromBody] JsonPatchDocument<Project> patchDoc)
         {
             var project = await _context.Projects.FindAsync(projectId);
 
             if (project == null)
             {
-                return NotFound("Project with such Id does not exist");
+                return BadRequest("Project with such Id does not exist");
             }
 
             patchDoc.ApplyTo(project, ModelState);
@@ -88,21 +87,20 @@ namespace DbREstService.Controllers
         }
 
         [HttpDelete("{projectId:int}")]
-        public async Task<IActionResult> DeleteProject(
-            [FromQuery(Name = "projectId")] int projectId)
+        public async Task<ActionResult<Project>> DeleteProject(int projectId)
         {
             try
             {
                 var project = await _context.Projects.FindAsync(projectId);
                 if (project == null)
                 {
-                    return NotFound();
+                    BadRequest("Project with such Id does not exist");
                 }
 
                 _context.Projects.Remove(project);
                 await _context.SaveChangesAsync();
 
-                return CreatedAtAction("GetProject", new { id = project.Id }, project);
+                return project;
             }
             catch (Exception ex)
             {
@@ -111,14 +109,13 @@ namespace DbREstService.Controllers
         }
 
         [HttpGet("{projectId:int}/reviews")]
-        public async Task<ActionResult<IEnumerable<Review>>> GetProjectReviews(
-            [FromQuery(Name = "projectId")] int projectId)
+        public async Task<ActionResult<IEnumerable<Review>>> GetProjectReviews(int projectId)
         {
             try
             {
                 var project = await _context.Projects.FindAsync(projectId);
 
-                if (project == null) return NotFound("Project with such Id does not exist");
+                if (project == null) return BadRequest("Project with such Id does not exist");
 
                 if (project.Status != "Finished") return BadRequest("Selected project is not finished");
 
@@ -138,14 +135,14 @@ namespace DbREstService.Controllers
 
         [HttpPost("{projectId:int}/reviews")]
         public async Task<ActionResult<IEnumerable<Review>>> AddReview(
-            [FromQuery(Name = "projectId")] int projectId, 
+            int projectId, 
             [FromBody] Review review)
         {
             try
             {
                 var project = await _context.Projects.FindAsync(projectId);
 
-                if (project == null) return NotFound("Project with such Id does not exist");
+                if (project == null) return BadRequest("Project with such Id does not exist");
 
                 if (project.Status != "Finished") return BadRequest("Selected project is not finished");
 
