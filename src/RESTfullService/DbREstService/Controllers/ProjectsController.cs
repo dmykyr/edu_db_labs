@@ -22,7 +22,11 @@ namespace DbREstService.Controllers
         {
             try
             {
-                return await _context.Projects.ToListAsync();
+                return await _context.Projects
+                    .Include(p => p.Tasks)
+                    .Include(p => p.Payments)
+                    .Include(p => p.Reviews)
+                    .ToListAsync();
             }
             catch (Exception ex)
             {
@@ -35,7 +39,12 @@ namespace DbREstService.Controllers
         {
             try
             {
-                var project = await _context.Projects.FindAsync(projectId);
+                var project = await _context.Projects
+                    .Include(p => p.Tasks)
+                    .Include(p => p.Payments)
+                    .Include(p => p.Reviews)
+                    .FirstAsync(p => p.Id == projectId);
+
 
                 if (project == null)  return BadRequest("Project with such Id does not exist");
 
@@ -52,17 +61,28 @@ namespace DbREstService.Controllers
             int projectId, 
             [FromBody] JsonPatchDocument<Project> patchDoc)
         {
-            var project = await _context.Projects.FindAsync(projectId);
-
-            if (project == null)
+            try
             {
-                return BadRequest("Project with such Id does not exist");
+                var project = await _context.Projects
+                    .Include(p => p.Tasks)
+                    .Include(p => p.Payments)
+                    .Include(p => p.Reviews)
+                    .FirstAsync(p => p.Id == projectId);
+
+                if (project == null)
+                {
+                    return BadRequest("Project with such Id does not exist");
+                }
+
+                patchDoc.ApplyTo(project, ModelState);
+                await _context.SaveChangesAsync();
+
+                return RedirectToAction("GetProject", new { projectId });
             }
-
-            patchDoc.ApplyTo(project, ModelState);
-            await _context.SaveChangesAsync();
-
-            return RedirectToAction("GetProject", new { projectId });
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Internal Server Error: {ex.Message}");
+            }
         }
 
         [HttpPost]
@@ -91,7 +111,12 @@ namespace DbREstService.Controllers
         {
             try
             {
-                var project = await _context.Projects.FindAsync(projectId);
+                var project = await _context.Projects
+                    .Include(p => p.Tasks)
+                    .Include(p => p.Payments)
+                    .Include(p => p.Reviews)
+                    .FirstAsync(p => p.Id == projectId);
+
                 if (project == null)
                 {
                     BadRequest("Project with such Id does not exist");

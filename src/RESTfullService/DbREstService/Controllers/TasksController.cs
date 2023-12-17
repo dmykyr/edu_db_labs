@@ -25,10 +25,13 @@ namespace DbREstService.Controllers
             {
                 if(!await  _context.Projects.AnyAsync(p => p.Id == projectId))
                 {
-                    return BadRequest("Project with such Id does not exist");
+                    return BadRequest("Task with such Id does not exist");
                 }
 
-                return await _context.Tasks.Where(t => t.ProjectId == projectId).ToListAsync();
+                return await _context.Tasks
+                    .Where(t => t.ProjectId == projectId)
+                    .Include(t => t.Project)
+                    .ToListAsync();
             }
             catch (Exception ex)
             {
@@ -41,9 +44,11 @@ namespace DbREstService.Controllers
         {
             try
             {
-                var task = await _context.Tasks.FindAsync(taskId);
+                var task = await _context.Tasks
+                    .Include(t => t.Project)
+                    .FirstAsync(t => t.Id == taskId);
 
-                if (task == null) return BadRequest("Project with such Id does not exist");
+                if (task == null) return BadRequest("Task with such Id does not exist");
 
                 return task;
             }

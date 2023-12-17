@@ -1,6 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations.Schema;
-
-namespace DbREstService.Models;
+﻿namespace DbREstService.Models;
 
 public partial class Project
 {
