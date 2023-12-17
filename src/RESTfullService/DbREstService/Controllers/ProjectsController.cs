@@ -30,8 +30,9 @@ namespace DbREstService.Controllers
             }
         }
 
-        [HttpGet("{projectId}")]
-        public async Task<ActionResult<Project>> GetProject(int projectId)
+        [HttpGet("{projectId:int}")]
+        public async Task<ActionResult<Project>> GetProject(
+            [FromQuery(Name = "projectId")] int projectId)
         {
             try
             {
@@ -47,10 +48,12 @@ namespace DbREstService.Controllers
             }
         }
 
-        [HttpPatch("{projectId}")]
-        public IActionResult PatchProject(int projectId, [FromBody] JsonPatchDocument<Project> patchDoc)
+        [HttpPatch("{projectId:int}")]
+        public async Task<ActionResult<Project>> PatchProject(
+            [FromQuery(Name = "pageNumber")] int projectId, 
+            [FromBody] JsonPatchDocument<Project> patchDoc)
         {
-            var project = _context.Projects.Find(projectId);
+            var project = await _context.Projects.FindAsync(projectId);
 
             if (project == null)
             {
@@ -58,7 +61,7 @@ namespace DbREstService.Controllers
             }
 
             patchDoc.ApplyTo(project, ModelState);
-            _context.SaveChanges();
+            await _context.SaveChangesAsync();
 
             return RedirectToAction("GetProject", new { projectId });
         }
@@ -84,8 +87,9 @@ namespace DbREstService.Controllers
             }
         }
 
-        [HttpDelete("{projectId}")]
-        public async Task<IActionResult> DeleteProject(int projectId)
+        [HttpDelete("{projectId:int}")]
+        public async Task<IActionResult> DeleteProject(
+            [FromQuery(Name = "projectId")] int projectId)
         {
             try
             {
@@ -106,8 +110,9 @@ namespace DbREstService.Controllers
             }
         }
 
-        [HttpGet("{projectId}/reviews")]
-        public async Task<ActionResult<IEnumerable<Review>>> GetProjectReviews(int projectId)
+        [HttpGet("{projectId:int}/reviews")]
+        public async Task<ActionResult<IEnumerable<Review>>> GetProjectReviews(
+            [FromQuery(Name = "projectId")] int projectId)
         {
             try
             {
@@ -131,8 +136,10 @@ namespace DbREstService.Controllers
             }
         }
 
-        [HttpPost("{projectId}/reviews")]
-        public async Task<ActionResult<IEnumerable<Review>>> AddReview(int projectId, [FromBody] Review review)
+        [HttpPost("{projectId:int}/reviews")]
+        public async Task<ActionResult<IEnumerable<Review>>> AddReview(
+            [FromQuery(Name = "projectId")] int projectId, 
+            [FromBody] Review review)
         {
             try
             {
