@@ -17,6 +17,11 @@ namespace DbREstService.Controllers
             _context = context;
         }
 
+        /// <summary>
+        ///     Retrieves all projects
+        /// </summary>
+        /// <response code="200"> Project list </response>
+        /// <response code="500"> Internal Server Error </response>
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Project>>> GetProjects()
         {
@@ -34,6 +39,12 @@ namespace DbREstService.Controllers
             }
         }
 
+        /// <summary>
+        ///     Retrieves a specific project by unique id
+        /// </summary>
+        /// <response code="200"> Specific Project </response>
+        /// <response code="400"> InvalidIndexError: Project with such Id does not exist </response>
+        /// <response code="500"> Internal Server Error </response>
         [HttpGet("{projectId:int}")]
         public async Task<ActionResult<Project>> GetProject(int projectId)
         {
@@ -46,7 +57,10 @@ namespace DbREstService.Controllers
                     .FirstAsync(p => p.Id == projectId);
 
 
-                if (project == null)  return BadRequest("Project with such Id does not exist");
+                if (project == null)
+                {
+                    return BadRequest("InvalidIndexError: Project with such Id does not exist");
+                }
 
                 return project;
             }
@@ -56,6 +70,23 @@ namespace DbREstService.Controllers
             }
         }
 
+        /// <summary>
+        ///     Update specific values for project by unique id
+        /// </summary>
+        /// <remarks>
+        /// Sample request:
+        ///     [
+        ///       {
+        ///         "op":"replace",
+        ///         "path":"/{parameter name}",
+        ///         "value": "{parameter value}"
+        ///       }
+        ///     ]
+        ///     
+        /// </remarks>
+        /// <response code="200"> An updated Project </response>
+        /// <response code="400"> InvalidIndexError: Project with such Id does not exist </response>
+        /// <response code="500"> Internal Server Error </response>
         [HttpPatch("{projectId:int}")]
         public async Task<ActionResult<Project>> PatchProject(
             int projectId, 
@@ -71,7 +102,7 @@ namespace DbREstService.Controllers
 
                 if (project == null)
                 {
-                    return BadRequest("Project with such Id does not exist");
+                    return BadRequest("InvalidIndexError: Project with such Id does not exist");
                 }
 
                 patchDoc.ApplyTo(project, ModelState);
@@ -85,6 +116,15 @@ namespace DbREstService.Controllers
             }
         }
 
+        /// <summary>
+        /// Add Project to db
+        /// </summary>
+        /// <response code="200"> A newly created Project </response>
+        /// <response code="400">
+        ///     DuplicateProjectNameError: project with such name already exists&#xA;
+        ///     InvalidIndexError: Project with such Id does not exist
+        /// </response>
+        /// <response code="500"> Internal Server Error </response>
         [HttpPost]
         public async Task<ActionResult<Project>> CreateProject([FromBody] Project project)
         {
@@ -106,6 +146,12 @@ namespace DbREstService.Controllers
             }
         }
 
+        /// <summary>
+        ///     Remove Project from db by unique id
+        /// </summary>
+        /// <response code="200"> Just removed Project </response>
+        /// <response code="400"> InvalidIndexError: Project with such Id does not exist </response>
+        /// <response code="500"> Internal Server Error </response>
         [HttpDelete("{projectId:int}")]
         public async Task<ActionResult<Project>> DeleteProject(int projectId)
         {
@@ -119,7 +165,7 @@ namespace DbREstService.Controllers
 
                 if (project == null)
                 {
-                    BadRequest("Project with such Id does not exist");
+                    return BadRequest("InvalidIndexError: Project with such Id does not exist");
                 }
 
                 _context.Projects.Remove(project);
@@ -133,24 +179,35 @@ namespace DbREstService.Controllers
             }
         }
 
+        /// <summary>
+        ///     Retrieves reviews related to specific project
+        /// </summary>
+        /// <response code="200"> List of reviews </response>
+        /// <response code="400">
+        ///     InvalidIndexError: Project with such Id does not exist&#xA;
+        ///     Selected project is not finished
+        /// </response>
+        /// <response code="500"> Internal Server Error </response>
         [HttpGet("{projectId:int}/reviews")]
         public async Task<ActionResult<IEnumerable<Review>>> GetProjectReviews(int projectId)
         {
             try
             {
                 var project = await _context.Projects.FindAsync(projectId);
+                if (project == null)
+                {
+                    return BadRequest("InvalidIndexError: Project with such Id does not exist");
+                }
 
-                if (project == null) return BadRequest("Project with such Id does not exist");
-
-                if (project.Status != "Finished") return BadRequest("Selected project is not finished");
+                if (project.Status != "Finished")
+                {
+                    return BadRequest("Selected project is not finished");
+                }
 
                 var reviews = await _context.Reviews
                                             .Where(r => r.ProjectId == projectId)
                                             .ToListAsync();
-
-                await _context.SaveChangesAsync();
-
-                return CreatedAtAction("GetReviews", new { id = project.Id }, project);
+                return reviews;
             }
             catch (Exception ex)
             {
@@ -158,6 +215,15 @@ namespace DbREstService.Controllers
             }
         }
 
+        /// <summary>
+        ///     Add review to specific project
+        /// </summary>
+        /// <response code="200"> List of reviews </response>
+        /// <response code="400">
+        ///     InvalidIndexError: Project with such Id does not exist&#xA;
+        ///     Selected project is not finished
+        /// </response>
+        /// <response code="500"> Internal Server Error </response>
         [HttpPost("{projectId:int}/reviews")]
         public async Task<ActionResult<IEnumerable<Review>>> AddReview(
             int projectId, 
@@ -167,7 +233,7 @@ namespace DbREstService.Controllers
             {
                 var project = await _context.Projects.FindAsync(projectId);
 
-                if (project == null) return BadRequest("Project with such Id does not exist");
+                if (project == null) return BadRequest("InvalidIndexError: Project with such Id does not exist");
 
                 if (project.Status != "Finished") return BadRequest("Selected project is not finished");
 

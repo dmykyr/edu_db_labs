@@ -1,7 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using DbREstService.Data;
-using DbREstService.Models;
 using Microsoft.AspNetCore.JsonPatch;
 
 namespace DbREstService.Controllers
@@ -17,6 +16,12 @@ namespace DbREstService.Controllers
             _context = context;
         }
 
+        /// <summary>
+        ///     Retrieves tasks related to specific project
+        /// </summary>
+        /// <response code="200"> List of tasks </response>
+        /// <response code="400"> InvalidIndexError: Task with such Id does not exist </response>
+        /// <response code="500"> Internal Server Error </response>
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Models.Task>>> GetTasks(
             [FromQuery(Name = "projectId")] int projectId)
@@ -25,7 +30,7 @@ namespace DbREstService.Controllers
             {
                 if(!await  _context.Projects.AnyAsync(p => p.Id == projectId))
                 {
-                    return BadRequest("Task with such Id does not exist");
+                    return BadRequest("InvalidIndexError: Task with such Id does not exist");
                 }
 
                 return await _context.Tasks
@@ -39,6 +44,12 @@ namespace DbREstService.Controllers
             }
         }
 
+        /// <summary>
+        ///     Retrieves specific task by unique id
+        /// </summary>
+        /// <response code="200"> Specific Task </response>
+        /// <response code="400">  InvalidIndexError: Task with such Id does not exist </response>
+        /// <response code="500"> Internal Server Error </response>
         [HttpGet("{taskId:int}")]
         public async Task<ActionResult<Models.Task>> GetTask(int taskId)
         {
@@ -48,7 +59,7 @@ namespace DbREstService.Controllers
                     .Include(t => t.Project)
                     .FirstAsync(t => t.Id == taskId);
 
-                if (task == null) return BadRequest("Task with such Id does not exist");
+                if (task == null) return BadRequest("InvalidIndexError: Task with such Id does not exist");
 
                 return task;
             }
@@ -58,16 +69,32 @@ namespace DbREstService.Controllers
             }
         }
 
+        /// <summary>
+        ///     Update specific values for task by unique id
+        /// </summary>
+        /// <remarks>
+        /// Sample request:
+        ///     [
+        ///       {
+        ///         "op":"replace",
+        ///         "path":"/{parameter name}",
+        ///         "value": "{parameter value}"
+        ///       }
+        ///     ]
+        ///     
+        /// </remarks>
+        /// <response code="200"> An updated Task </response>
+        /// <response code="400"> InvalidIndexError: Task with such Id does not exist </response>
+        /// <response code="500"> Internal Server Error </response>
         [HttpPatch("{taskId:int}")]
         public async Task<ActionResult<Models.Task>> PatchTask(
             int taskId,
             [FromBody] JsonPatchDocument<Models.Task> patchDoc)
         {
             var task = await _context.Tasks.FindAsync(taskId);
-
             if (task == null)
             {
-                return BadRequest("Task with such Id does not exist");
+                return BadRequest("InvalidIndexError: Task with such Id does not exist");
             }
 
             patchDoc.ApplyTo(task, ModelState);
@@ -76,6 +103,12 @@ namespace DbREstService.Controllers
             return RedirectToAction("GetTask", new { taskId });
         }
 
+        /// <summary>
+        ///     Add Task to db
+        /// </summary>
+        /// <response code="200"> A newly created Task </response>
+        /// <response code="400"> InvalidIndexError: Task with such Id does not exist </response>
+        /// <response code="500"> Internal Server Error </response>
         [HttpPost]
         public async Task<ActionResult<Models.Task>> CreateTask([FromBody] Models.Task task)
         {
@@ -92,6 +125,12 @@ namespace DbREstService.Controllers
             }
         }
 
+        /// <summary>
+        ///     Remove Task from db by unique id
+        /// </summary>
+        /// <response code="200"> Just removed Task </response>
+        /// <response code="400"> InvalidIndexError: Task with such Id does not exist </response>
+        /// <response code="500"> Internal Server Error </response>
         [HttpDelete("{taskId:int}")]
         public async Task<ActionResult<Models.Task>> DeleteTask(int taskId)
         {
@@ -100,7 +139,7 @@ namespace DbREstService.Controllers
                 var task = await _context.Tasks.FindAsync(taskId);
                 if (task == null)
                 {
-                    return NotFound();
+                    return BadRequest("InvalidIndexError: Task with such Id does not exist");
                 }
 
                 _context.Tasks.Remove(task);
