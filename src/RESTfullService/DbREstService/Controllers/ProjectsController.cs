@@ -3,6 +3,9 @@ using Microsoft.EntityFrameworkCore;
 using DbREstService.Data;
 using DbREstService.Models;
 using Microsoft.AspNetCore.JsonPatch;
+using DbREstService.DTO;
+using DbREstService.Responses;
+using DbREstService.DTOs;
 
 namespace DbREstService.Controllers
 {
@@ -23,15 +26,17 @@ namespace DbREstService.Controllers
         /// <response code="200"> Project list </response>
         /// <response code="500"> Internal Server Error </response>
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<Project>>> GetProjects()
+        public async Task<ActionResult<IEnumerable<ProjectResponse>>> GetProjects()
         {
             try
             {
-                return await _context.Projects
-                    .Include(p => p.Tasks)
-                    .Include(p => p.Payments)
-                    .Include(p => p.Reviews)
-                    .ToListAsync();
+                var projects = await System.Threading.Tasks.Task.Run(() =>
+                    _context.Projects
+                        .Select(ProjectResponse.ConvertFromModel)
+                        .ToList()
+                );
+
+                return projects;
             }
             catch (Exception ex)
             {
@@ -46,23 +51,18 @@ namespace DbREstService.Controllers
         /// <response code="400"> InvalidIndexError: Project with such Id does not exist </response>
         /// <response code="500"> Internal Server Error </response>
         [HttpGet("{projectId:int}")]
-        public async Task<ActionResult<Project>> GetProject(int projectId)
+        public async Task<ActionResult<ProjectResponse>> GetProject(int projectId)
         {
             try
             {
-                var project = await _context.Projects
-                    .Include(p => p.Tasks)
-                    .Include(p => p.Payments)
-                    .Include(p => p.Reviews)
-                    .FirstAsync(p => p.Id == projectId);
-
+                var project = await _context.Projects.FirstAsync(p => p.Id == projectId);
 
                 if (project == null)
                 {
                     return BadRequest("InvalidIndexError: Project with such Id does not exist");
                 }
 
-                return project;
+                return ProjectResponse.ConvertFromModel(project);
             }
             catch (Exception ex)
             {
@@ -88,17 +88,13 @@ namespace DbREstService.Controllers
         /// <response code="400"> InvalidIndexError: Project with such Id does not exist </response>
         /// <response code="500"> Internal Server Error </response>
         [HttpPatch("{projectId:int}")]
-        public async Task<ActionResult<Project>> PatchProject(
+        public async Task<ActionResult<ProjectResponse>> PatchProject(
             int projectId, 
             [FromBody] JsonPatchDocument<Project> patchDoc)
         {
             try
             {
-                var project = await _context.Projects
-                    .Include(p => p.Tasks)
-                    .Include(p => p.Payments)
-                    .Include(p => p.Reviews)
-                    .FirstAsync(p => p.Id == projectId);
+                var project = await _context.Projects.FirstAsync(p => p.Id == projectId);
 
                 if (project == null)
                 {
@@ -126,19 +122,19 @@ namespace DbREstService.Controllers
         /// </response>
         /// <response code="500"> Internal Server Error </response>
         [HttpPost]
-        public async Task<ActionResult<Project>> CreateProject([FromBody] Project project)
+        public async Task<ActionResult<ProjectResponse>> CreateProject([FromBody] ProjectDTO projectDTO)
         {
             try
             {
-                if (await _context.Projects.FirstAsync(p => p.Name == project.Name) != null)
+                if (await _context.Projects.FirstOrDefaultAsync(p => p.Name == projectDTO.Name) != null)
                 {
                     return BadRequest("DuplicateProjectNameError: project with such name already exists");
                 }
 
-                _context.Projects.Add(project);
+                var entityEntry = _context.Projects.Add(projectDTO.ToModel());
                 await _context.SaveChangesAsync();
 
-                return CreatedAtAction("GetProject", new { id = project.Id });
+                return RedirectToAction("GetProject", new { projectId = entityEntry.Entity.Id });
             }
             catch (Exception ex)
             {
@@ -153,7 +149,7 @@ namespace DbREstService.Controllers
         /// <response code="400"> InvalidIndexError: Project with such Id does not exist </response>
         /// <response code="500"> Internal Server Error </response>
         [HttpDelete("{projectId:int}")]
-        public async Task<ActionResult<Project>> DeleteProject(int projectId)
+        public async Task<ActionResult<ProjectResponse>> DeleteProject(int projectId)
         {
             try
             {
@@ -171,7 +167,7 @@ namespace DbREstService.Controllers
                 _context.Projects.Remove(project);
                 await _context.SaveChangesAsync();
 
-                return project;
+                return ProjectResponse.ConvertFromModel(project);
             }
             catch (Exception ex)
             {
@@ -188,12 +184,15 @@ namespace DbREstService.Controllers
         ///     Selected project is not finished
         /// </response>
         /// <response code="500"> Internal Server Error </response>
+        
         [HttpGet("{projectId:int}/reviews")]
-        public async Task<ActionResult<IEnumerable<Review>>> GetProjectReviews(int projectId)
+        public async Task<ActionResult<IEnumerable<ReviewResponse>>> GetProjectReviews(int projectId)
         {
             try
             {
-                var project = await _context.Projects.FindAsync(projectId);
+                var project = await _context.Projects
+                        .Include(p => p.Reviews)
+                        .FirstOrDefaultAsync(p => p.Id == projectId);
                 if (project == null)
                 {
                     return BadRequest("InvalidIndexError: Project with such Id does not exist");
@@ -204,10 +203,7 @@ namespace DbREstService.Controllers
                     return BadRequest("Selected project is not finished");
                 }
 
-                var reviews = await _context.Reviews
-                                            .Where(r => r.ProjectId == projectId)
-                                            .ToListAsync();
-                return reviews;
+                return project.Reviews.Select(ReviewResponse.ConvertFromModel).ToList();
             }
             catch (Exception ex)
             {
@@ -221,13 +217,14 @@ namespace DbREstService.Controllers
         /// <response code="200"> List of reviews </response>
         /// <response code="400">
         ///     InvalidIndexError: Project with such Id does not exist&#xA;
+        ///     InvalidIndexError: Project id in review and parameter are different&#xA;
         ///     Selected project is not finished
         /// </response>
         /// <response code="500"> Internal Server Error </response>
         [HttpPost("{projectId:int}/reviews")]
         public async Task<ActionResult<IEnumerable<Review>>> AddReview(
             int projectId, 
-            [FromBody] Review review)
+            [FromBody] ReviewDTO reviewDTO)
         {
             try
             {
@@ -237,10 +234,10 @@ namespace DbREstService.Controllers
 
                 if (project.Status != "Finished") return BadRequest("Selected project is not finished");
 
-                _context.Reviews.Add(review);
+                _context.Reviews.Add(reviewDTO.ToModel());
                 await _context.SaveChangesAsync();
 
-                return CreatedAtAction("GetReviews", new { id = project.Id });
+                return RedirectToAction("GetProjectReviews", new { projectId });
             }
             catch (Exception ex)
             {

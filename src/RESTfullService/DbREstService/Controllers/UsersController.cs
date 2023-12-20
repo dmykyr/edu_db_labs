@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using DbREstService.Data;
 using DbREstService.Models;
 using Microsoft.AspNetCore.JsonPatch;
+using DbREstService.Responses;
 
 namespace DbREstService.Controllers
 {
@@ -24,7 +25,7 @@ namespace DbREstService.Controllers
         /// <response code="400"> InvalidIndexError: Project with such Id does not exist </response>
         /// <response code="500"> Internal Server Error </response>
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<User>>> GetUsers([FromQuery] int projectId)
+        public async Task<ActionResult<IEnumerable<UserResponse>>> GetUsers([FromQuery] int projectId)
         {
             try
             {
@@ -35,7 +36,7 @@ namespace DbREstService.Controllers
                     return BadRequest($"InvalidIndexError: Project with such Id does not exist");
                 }
 
-                return await GetProjectUsers(project.Id);
+                return (await GetProjectUsers(project.Id)).Select(UserResponse.ConvertFromModel).ToList();
             }
             catch (Exception ex)
             {
@@ -50,7 +51,7 @@ namespace DbREstService.Controllers
         /// <response code="400"> InvalidIndexError: User with such Id does not exist </response>
         /// <response code="500"> Internal Server Error </response>
         [HttpGet("{userId}")]
-        public async Task<ActionResult<User>> GetUser(int userId)
+        public async Task<ActionResult<UserResponse>> GetUser(int userId)
         {
             try
             {
@@ -61,7 +62,7 @@ namespace DbREstService.Controllers
                     return BadRequest($"InvalidIndexError: User with such Id does not exist");
                 }
 
-                return user;
+                return UserResponse.ConvertFromModel(user);
             }
             catch (Exception ex)
             {
@@ -87,7 +88,7 @@ namespace DbREstService.Controllers
         /// <response code="400"> InvalidIndexError: User with such Id does not exist </response>
         /// <response code="500"> Internal Server Error </response>
         [HttpPatch("{userId:int}")]
-        public async Task<ActionResult<User>> PatchUser(
+        public async Task<ActionResult<UserResponse>> PatchUser(
             int userId,
             [FromBody] JsonPatchDocument<User> patchDoc)
         {
@@ -117,6 +118,7 @@ namespace DbREstService.Controllers
         /// <response code="201"> User connected successfully. Member Id: {memberId} </response>
         /// <response code="400">
         ///     InvalidIndexError: User with such Id does not exist&#xA;
+        ///     InvalidIndexError: Project with such name does not exist&#xA;
         ///     DuplicateProjectMember: User with such Id already connected to selected project&#xA;
         ///     InvalidNameError: Role with such name does not exist
         /// </response>
@@ -130,7 +132,6 @@ namespace DbREstService.Controllers
             try
             {
                 var user = await _context.Users.FindAsync(userId);
-
                 if (user == null)
                 {
                     return BadRequest("InvalidIndexError: User with such Id does not exist");
@@ -142,6 +143,12 @@ namespace DbREstService.Controllers
                     return BadRequest("InvalidNameError: Role with such name does not exist");
                 }
 
+                var project = await _context.Projects.FindAsync(projectId);
+                if (project == null)
+                {
+                    return BadRequest("InvalidIndexError: Project with such name does not exist");
+                }
+
                 var projectUsers = await GetProjectUsers(projectId);
                 if (projectUsers.Any(pu => pu.Members.Any(m => m.RoleId == role.Id))) 
                 {
@@ -150,13 +157,10 @@ namespace DbREstService.Controllers
 
                 var addedEntityEntry = await _context.Members
                     .AddAsync(new Member() { RoleId = role.Id, UserId = userId });
-                await _context.SaveChangesAsync();
-
                 var member = addedEntityEntry.Entity;
 
-                await _context.ProjectsMembers
-                    .AddAsync(new ProjectsMember() { ProjectId =  projectId, MemberId = member.Id });
                 await _context.SaveChangesAsync();
+
 
                 return Created($"User connected successfully. Member Id: {member.Id}", member);
             }
@@ -173,7 +177,7 @@ namespace DbREstService.Controllers
         /// <response code="400"> InvalidIndexError: User with such Id does not exist </response>
         /// <response code="500"> Internal Server Error </response>
         [HttpDelete("{userId:int}")]
-        public async Task<ActionResult<User>> DeleteUser(int userId)
+        public async Task<ActionResult<UserResponse>> DeleteUser(int userId)
         {
             try
             {
@@ -187,7 +191,7 @@ namespace DbREstService.Controllers
                 _context.Users.Remove(user);
                 await _context.SaveChangesAsync();
 
-                return user;
+                return UserResponse.ConvertFromModel(user);
             }
             catch (Exception ex)
             {
@@ -197,17 +201,12 @@ namespace DbREstService.Controllers
 
         private async Task<List<User>> GetProjectUsers(int projectId)
         {
-            var projectMembers = await _context.ProjectsMembers
-                                                    .Where(pm => pm.ProjectId == projectId)
-                                                    .ToListAsync();
-
-            var projectUsers = await _context.Users
-                                    .Include(u => u.Members)
-                                    .Where(u => u.Members.Any(
-                                                m => projectMembers.Any(pm => pm.MemberId == m.Id)))
-                                    .ToListAsync();
-
-            return projectUsers;
+            return await _context.Users
+                .Include(u => u.Members)
+                .Where(u => _context.ProjectsMembers
+                    .Where(pm => pm.ProjectId == projectId)
+                    .Any(pm => u.Members.Any(m => m.Id == pm.MemberId)))
+                .ToListAsync();
         }
     }
 }
