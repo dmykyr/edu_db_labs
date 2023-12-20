@@ -1,7 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations.Schema;
 
 namespace DbREstService.Models;
-
 public partial class RoleGrant
 {
     public int RoleId { get; set; }

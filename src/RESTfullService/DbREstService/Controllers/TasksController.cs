@@ -33,7 +33,7 @@ namespace DbREstService.Controllers
                 var project = await _context.Projects
                     .Include(p => p.Tasks)
                     .FirstOrDefaultAsync(p => p.Id == projectId);
-                if(project == null)
+                if (project == null)
                 {
                     return BadRequest("InvalidIndexError: Project with such Id does not exist");
                 }
@@ -116,7 +116,7 @@ namespace DbREstService.Controllers
         {
             try
             {
-                if(!await _context.Projects.AnyAsync(p => p.Id == projectId))
+                if (!await _context.Projects.AnyAsync(p => p.Id == projectId))
                 {
                     return BadRequest("InvalidIndexError: Project with such Id does not exist");
                 }
